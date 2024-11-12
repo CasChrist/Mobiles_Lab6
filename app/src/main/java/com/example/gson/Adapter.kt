@@ -3,6 +3,7 @@ package com.example.gson
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,7 +22,10 @@ class Adapter(private val photos: List<Photo>, private val context: Context) : R
             itemView.setOnClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    copyPhotoLinkToClipboard(photos[position])
+                    val intent = Intent(context, PicViewer::class.java)
+                    val link = buildImageUrl(photos[position])
+                    intent.putExtra("PhotoURL", link)
+                    context.startActivity(intent)
                 }
             }
         }
@@ -39,16 +43,6 @@ class Adapter(private val photos: List<Photo>, private val context: Context) : R
     }
 
     override fun getItemCount(): Int = photos.size
-
-    private fun copyPhotoLinkToClipboard(photo: Photo) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val link = buildImageUrl(photo)
-        val clip = ClipData.newPlainText("Photo Link", link)
-        clipboard.setPrimaryClip(clip)
-
-        Timber.i("Copied: $link")
-        Toast.makeText(context, "Copied to clipboard: $link", Toast.LENGTH_SHORT).show()
-    }
 
     private fun buildImageUrl(photo: Photo): String {
         return "https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg"
