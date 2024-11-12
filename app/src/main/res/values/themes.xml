@@ -6,4 +6,6 @@
     </style>
 
     <style name="Theme.GSON" parent="Base.Theme.GSON" />
+    <style name="Theme.MyAppImages" parent="Theme.AppCompat.Light.NoActionBar">
+    </style>
 </resources>
