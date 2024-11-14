@@ -1,17 +1,20 @@
 package com.example.gson
 
-import java.io.IOException
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import timber.log.Timber
+import com.google.android.material.snackbar.Snackbar
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.google.gson.Gson
+import timber.log.Timber
+import java.io.IOException
 
 data class Photo(
     val id: String,
@@ -38,16 +41,35 @@ data class Wrapper(
     val stat: String
 )
 
-
 class MainActivity : AppCompatActivity() {
     private val client = OkHttpClient()
     private val gson = Gson()
     private lateinit var recyclerView: RecyclerView
     private lateinit var photoAdapter: Adapter
 
+    private val activityResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            val imageUrl = data?.getStringExtra("PhotoURL")
+            val isFavorite = data?.getBooleanExtra("isFavorite", false) ?: false
+
+            if (isFavorite && imageUrl != null) {
+                Snackbar.make(
+                    findViewById(R.id.main),
+                    "Картинка добавлена в избранное",
+                    Snackbar.LENGTH_LONG
+                ).setAction("Открыть") {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(imageUrl))
+                    startActivity(browserIntent)
+                }.show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -77,18 +99,28 @@ class MainActivity : AppCompatActivity() {
                 if (response.isSuccessful) {
                     response.use {
                         val bodyString = it.body?.string()
-                        val wrapper = gson.fromJson(bodyString, Wrapper::class.java)
+                        if (bodyString != null) {
+                            try {
+                                val wrapper = gson.fromJson(bodyString, Wrapper::class.java)
 
-                        if (wrapper.photos.photo.isNotEmpty()) {
-                            logEveryFifthPhoto(wrapper.photos.photo)
-                            generatePhotoLinks(wrapper.photos.photo)
+                                if (wrapper.photos.photo.isNotEmpty()) {
+                                    logEveryFifthPhoto(wrapper.photos.photo)
+                                    generatePhotoLinks(wrapper.photos.photo)
 
-                            runOnUiThread {
-                                photoAdapter = Adapter(wrapper.photos.photo, this@MainActivity)
-                                recyclerView.adapter = photoAdapter
+                                    runOnUiThread {
+                                        photoAdapter = Adapter(wrapper.photos.photo, this@MainActivity) { photoUrl ->
+                                            openPicViewer(photoUrl)
+                                        }
+                                        recyclerView.adapter = photoAdapter
+                                    }
+                                } else {
+                                    Timber.e("No photos found")
+                                }
+                            } catch (e: Exception) {
+                                Timber.e(e, "Error parsing JSON")
                             }
                         } else {
-                            Timber.e("No photos found")
+                            Timber.e("Response body is null")
                         }
                     }
                 } else {
@@ -109,13 +141,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun generatePhotoLinks(photos: List<Photo>) {
         val photoLinks = photos.map { photo ->
             "https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg"
         }
         photoLinks.forEach { link ->
-            Timber.d("Photo link: $link")
+            Timber.d("PhotoURL: $link")
         }
+    }
+
+    fun openPicViewer(photoUrl: String) {
+        val intent = Intent(this, PicViewer::class.java).apply {
+            putExtra("PhotoURL", photoUrl)
+        }
+        activityResultLauncher.launch(intent)
     }
 }
