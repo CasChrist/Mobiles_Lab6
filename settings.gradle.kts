@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NewActivity"
+rootProject.name = "GSON"
 include(":app")
  

@@ -1,4 +1,4 @@
-package com.example.newactivity
+package com.example.gson
 
 import org.junit.Test
 
